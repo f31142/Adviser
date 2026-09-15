@@ -1,0 +1,38 @@
+# Dependencies and generated output
+node_modules/
+.next/
+.vinext/
+dist/
+build/
+coverage/
+.wrangler/
+
+# Runtime configuration and credentials
+.env
+.env.*
+!.env.example
+!.env.*.example
+.dev.vars
+.dev.vars.*
+*.pem
+*.key
+*.p12
+
+# Local data, uploads, database dumps and archives
+*.db
+*.sqlite
+*.sqlite3
+*.db-*
+*.sqlite-*
+*.sqlite3-*
+uploads/
+backups/
+*.zip
+*.tar
+*.tar.gz
+
+# Local tooling and logs
+.codex/
+*.log
+.DS_Store
+Thumbs.db

@@ -1,0 +1,28 @@
+{
+  "project": "Adviser",
+  "destination_repository": "f31142/Adviser",
+  "site_url": "https://adviser.jinpyo7578.chatgpt.site",
+  "sites_project_id": "appgprj_6aa23610c5688191ade7f0c5f43a6a2d",
+  "source_files_imported": false,
+  "account_reset_implemented": false,
+  "account_reset_executed": false,
+  "recorded_deployed_version": {
+    "version_number": 1,
+    "version_id": "appgprj_6aa23610c5688191ade7f0c5f43a6a2d~appgver_53c848b8c00481919a34595332add084",
+    "source_commit_sha": "f369e98442ce986a6208825fcbc8fee39d70bfa6",
+    "deployment_id": "appgdep_6aa239d230288191b61e78c920d756dd",
+    "note": "Previous successful deployment record; not a fresh runtime verification."
+  },
+  "saved_version_to_import": {
+    "version_number": 2,
+    "version_id": "appgprj_6aa23610c5688191ade7f0c5f43a6a2d~appgver_4998769b414c8191a49a901a5e603516",
+    "source_commit_sha": "16e7db59c8ef2492daa579cc0245c3f5a4717f61",
+    "deployment_id": null,
+    "archive_format": "tar",
+    "archive_sha256": "71ffaa54c2400131e923173629e9c0c7b2ba88a8917ba0b0a7c61d23867effce",
+    "archive_size_bytes": 1966080,
+    "archive_file_count": 65,
+    "description": "Application submission and administrator approval before payment. Source archive bytes have not been retrieved in this migration."
+  },
+  "data_policy": "No credentials, password hashes, session tokens, customer records or uploaded documents are copied into this repository."
+}
