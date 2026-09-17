@@ -36,3 +36,8 @@ backups/
 *.log
 .DS_Store
 Thumbs.db
+
+# Private application data
+data/
+playwright-report/
+test-results/

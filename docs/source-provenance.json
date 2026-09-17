@@ -24,5 +24,13 @@
     "archive_file_count": 65,
     "description": "Application submission and administrator approval before payment. Source archive bytes have not been retrieved in this migration."
   },
-  "data_policy": "No credentials, password hashes, session tokens, customer records or uploaded documents are copied into this repository."
+  "data_policy": "No credentials, password hashes, session tokens, customer records or uploaded documents are copied into this repository.",
+  "github_rebuild": {
+    "date": "2026-09-17",
+    "source_recovered": true,
+    "source_location": "prior local Adviser checkout",
+    "target": "f31142/Adviser/main",
+    "hosting": "independent Node.js server; old Sites project not used",
+    "customer_data_imported": false
+  }
 }

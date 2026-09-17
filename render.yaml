@@ -1,0 +1,27 @@
+# A paid web service and a persistent disk are required. Review costs in Render.
+services:
+  - type: web
+    name: adviser
+    runtime: node
+    repo: https://github.com/f31142/Adviser
+    branch: main
+    region: singapore
+    plan: 0.5c-512mb
+    numInstances: 1
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /healthz
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: NODE_VERSION
+        value: 24
+      - key: DATA_DIR
+        value: /opt/render/project/src/data
+      - key: TRUST_PROXY
+        value: "true"
+      - key: ADMIN_PASSWORD
+        sync: false
+    disk:
+      name: adviser-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
