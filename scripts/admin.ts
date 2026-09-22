@@ -55,4 +55,23 @@ try {
         "결제 확인 중인 건이 있습니다. 결제를 정산한 후 초기화하세요.",
       );
     const statements = [
-      "
+      "DELETE FROM notices",
+      "DELETE FROM messages",
+      "DELETE FROM files",
+      "DELETE FROM payments",
+      "DELETE FROM orders",
+      "DELETE FROM sessions",
+      "DELETE FROM limits",
+      "DELETE FROM users WHERE role='customer'",
+    ];
+    await runtime.DB.batch(statements.map((s) => runtime.DB.prepare(s)));
+    // Retry also removes orphans after a prior interrupted deletion.
+    for (const id of readdirSync(runtime.BUCKET.directory))
+      if (/^[a-f0-9-]{36}$/.test(id)) await runtime.BUCKET.delete(id);
+    console.log(
+      "고객 계정·신청·채팅·첨부·결제 기록과 모든 로그인 세션을 초기화했습니다. 관리자와 운영 설정은 유지됩니다.",
+    );
+  }
+} finally {
+  runtime.DB.close();
+}
