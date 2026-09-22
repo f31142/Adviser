@@ -38,7 +38,7 @@ export async function user(req: Request): Promise<User | null> {
   if (!token) return null;
   return db()
     .prepare(
-      "SELECT u.id,u.email,u.name,u.role FROM sessions s JOIN users u ON s.user_id=u.id WHERE s.token=? AND s.expires>?",
+      "SELECT u.id,u.email,u.name,u.role FROM sessions s JOIN users u ON s.user_id=u.id WHERE s.token=? AND s.expires>? AND u.deleted_at IS NULL",
     )
     .bind(await digest(token), now())
     .first<User>();

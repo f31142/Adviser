@@ -22,7 +22,9 @@ try {
       throw new Error(
         "RESET_PASSWORD 환경변수에 10~128자의 새 비밀번호를 설정하세요.",
       );
-    const user = await runtime.DB.prepare("SELECT id FROM users WHERE email=?")
+    const user = await runtime.DB.prepare(
+      "SELECT id FROM users WHERE email=? AND deleted_at IS NULL",
+    )
       .bind(email)
       .first<{ id: string }>();
     if (!user)

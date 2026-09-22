@@ -18,6 +18,7 @@ import {
   notifyOther,
   sessionCookie,
 } from "./core.ts";
+import { listMembers, deleteMember } from "./members.ts";
 
 export async function GET(req: Request) {
   try {
@@ -30,6 +31,7 @@ export async function GET(req: Request) {
       testPayment: bindings().TOSS_CLIENT_KEY?.startsWith("test_") || false,
     };
     const url = new URL(req.url);
+    if (url.searchParams.get("members") === "1") return await listMembers(u);
     if (!u) return response({ user: null, config: c, orders: [], notices: [] });
     const id = url.searchParams.get("order");
     if (id) {
@@ -52,7 +54,7 @@ export async function GET(req: Request) {
       u.role === "admin"
         ? db()
             .prepare(
-              "SELECT o.*,u.name customer,u.email FROM orders o JOIN users u ON u.id=o.user_id ORDER BY o.updated DESC LIMIT 500",
+              "SELECT o.*,u.name customer,CASE WHEN u.deleted_at IS NULL THEN u.email ELSE '' END email FROM orders o JOIN users u ON u.id=o.user_id ORDER BY o.updated DESC LIMIT 500",
             )
             .all()
         : db()
@@ -138,7 +140,7 @@ export async function POST(req: Request) {
           .run();
       }
       const found = await db()
-        .prepare("SELECT * FROM users WHERE email=?")
+        .prepare("SELECT * FROM users WHERE email=? AND deleted_at IS NULL")
         .bind(email)
         .first<any>();
       const hash =
@@ -167,6 +169,7 @@ export async function POST(req: Request) {
       return response({ ok: true }, 200, { "Set-Cookie": sessionCookie() });
     }
     if (!u) fail("로그인이 필요합니다.", 401);
+    if (action === "deleteMember") return await deleteMember(u, b);
     if (action === "password") {
       const row = await db()
         .prepare("SELECT password FROM users WHERE id=?")

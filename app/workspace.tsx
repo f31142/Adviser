@@ -59,6 +59,7 @@ import {
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { checkout, paymentApi } from "./payments";
+import Members from "./members";
 const titles: Record<string, string> = {
   edit: "기존 서류 첨삭",
   write: "초안 작성 지원",
@@ -202,7 +203,14 @@ export default function Adviser() {
       setOid("");
       setDetail(null);
       setView((v) =>
-        ["detail", "orders", "notices", "account", "settings"].includes(v)
+        [
+          "detail",
+          "orders",
+          "notices",
+          "account",
+          "settings",
+          "members",
+        ].includes(v)
           ? "auth"
           : v,
       );
@@ -364,6 +372,14 @@ export default function Adviser() {
           >
             {admin ? "전체 작업" : "마이페이지"}
           </button>
+          {admin && (
+            <button
+              className={view === "members" ? "active" : ""}
+              onClick={() => navigate("members")}
+            >
+              회원 관리
+            </button>
+          )}
           {admin && (
             <button
               className={view === "settings" ? "active" : ""}
@@ -794,7 +810,8 @@ export default function Adviser() {
                       </strong>
                       {admin && (
                         <small>
-                          {o.customer} · {o.email}
+                          {o.customer}
+                          {o.email ? " · " + o.email : ""}
                         </small>
                       )}
                     </div>
@@ -1491,6 +1508,18 @@ export default function Adviser() {
               </aside>
             </div>
           </>
+        )}
+        {view === "members" && admin && (
+          <Members
+            onDelete={(memberId, confirmEmail) =>
+              run(async () => {
+                await api({ action: "deleteMember", memberId, confirmEmail });
+                await refresh();
+                toast.success("회원 계정을 삭제하고 모든 접속을 종료했습니다.");
+                return true;
+              })
+            }
+          />
         )}
         {view === "settings" && admin && cfg && (
           <>
