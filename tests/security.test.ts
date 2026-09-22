@@ -32,26 +32,26 @@ async function account(email: string) {
     action: "register",
     name: "고객",
     email,
-    password: "test-customer-password",
+    password: "Test-customer!",
   });
   assert.equal(r.status, 200);
   return r.headers.get("set-cookie")!.split(";")[0];
 }
 test("password hashes use random salts and reject incorrect credentials", async () => {
-  const a = await passwordHash("test-customer-password"),
-    b = await passwordHash("test-customer-password");
+  const a = await passwordHash("Test-customer!"),
+    b = await passwordHash("Test-customer!");
   assert.notEqual(a, b);
   assert.ok(a.startsWith("scrypt$32768$"));
-  assert.equal(await verify("test-customer-password", a), true);
+  assert.equal(await verify("Test-customer!", a), true);
   assert.equal(await verify("wrong-password", a), false);
-  assert.equal(await verify("test-customer-password", "corrupt"), false);
+  assert.equal(await verify("Test-customer!", "corrupt"), false);
 });
 test("session secrets stay out of DB and response; logout revokes them", async () => {
   const r = await post({
     action: "register",
     name: "계정",
     email: "tokens@example.test",
-    password: "test-customer-password",
+    password: "Test-customer!",
     role: "admin",
   });
   assert.equal(r.status, 200);
@@ -240,7 +240,7 @@ test("database and private files survive restart and migrations are repeatable",
   assert.throws(() => runtime.BUCKET.path("../../etc/passwd"));
   assert.ok(
     !readFileSync(join(dir, "adviser.sqlite")).includes(
-      Buffer.from("test-customer-password"),
+      Buffer.from("Test-customer!"),
     ),
   );
 });

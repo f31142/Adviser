@@ -52,18 +52,18 @@ test("only admins can list customers and delete confirmed non-admin accounts; re
     action: "register",
     email: "remove@example.test",
     name: "삭제 대상",
-    password: "old-customer-password",
+    password: "Old-customer!",
   });
   const secondSession = await post({
     action: "login",
     email: "remove@example.test",
-    password: "old-customer-password",
+    password: "Old-customer!",
   });
   const other = await post({
     action: "register",
     email: "other@example.test",
     name: "다른 고객",
-    password: "test-customer-password",
+    password: "Test-customer!",
   });
   const targetId = (await get("/api/workspace", target.cookie)).user.id;
   const deletion = {
@@ -175,7 +175,7 @@ test("only admins can list customers and delete confirmed non-admin accounts; re
     {
       action: "login",
       email: "remove@example.test",
-      password: "old-customer-password",
+      password: "Old-customer!",
     },
     "",
     401,
@@ -220,7 +220,7 @@ test("only admins can list customers and delete confirmed non-admin accounts; re
     action: "register",
     email: "remove@example.test",
     name: "새 고객",
-    password: "new-customer-password",
+    password: "New-customer!",
   });
   const freshWorkspace = await get("/api/workspace", fresh.cookie);
   assert.notEqual(freshWorkspace.user.id, targetId);

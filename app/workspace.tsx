@@ -59,6 +59,8 @@ import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { checkout, paymentApi } from "./payments";
 import Members from "./members";
+import { readRoute, useAppRoute, writeRoute } from "./navigation";
+import { passwordRuleMessage, validPassword } from "../lib/password-policy";
 const titles: Record<string, string> = {
   edit: "기존 서류 첨삭",
   write: "초안 작성 지원",
@@ -74,6 +76,7 @@ const statuses: Record<string, string> = {
   working: "작업 중",
   review: "고객 검토",
   complete: "작업 완료",
+  closed: "완료 확정",
   cancel_requested: "취소 요청",
   cancelled: "취소 완료",
   refunded: "취소 처리 완료",
@@ -150,12 +153,30 @@ function GuestLanding({
   disabled: boolean;
 }) {
   const process = [
-    ["서비스 선택·로그인", "원하는 작업을 고른 뒤 이메일과 비밀번호로 로그인합니다. 계정이 없다면 같은 화면에서 바로 회원가입할 수 있습니다."],
-    ["설문과 서류 제출", "지원 직무, 학력·경력·주요 경험, 작성 문항과 글자 수, 제출 기관과 마감일을 입력합니다. 기존 서류 첨삭은 이 단계에서 파일도 함께 첨부합니다."],
-    ["관리자 검토·승인", "관리자가 신청 내용과 첨부 자료를 확인합니다. 보완이 필요하면 전용 채팅으로 안내하고, 준비가 되면 작업을 승인합니다."],
-    ["승인 후 결제", "관리자 승인 알림을 받은 뒤 결제합니다. 결제가 확인되기 전에는 작업이 시작되지 않아 신청 내용을 안전하게 조정할 수 있습니다."],
-    ["작업·1:1 피드백", "관리자가 초안을 작성하거나 서류를 첨삭하고, 신청 건별 채팅에서 질문과 수정 의견을 주고받습니다."],
-    ["결과물 확인·완성", "완성된 결과물을 마이페이지에서 확인하고 내려받습니다. 진행 상태와 대화 기록도 신청 건별로 계속 보관됩니다."],
+    [
+      "서비스 선택·로그인",
+      "원하는 작업을 고른 뒤 이메일과 비밀번호로 로그인합니다. 계정이 없다면 같은 화면에서 바로 회원가입할 수 있습니다.",
+    ],
+    [
+      "설문과 서류 제출",
+      "지원 직무, 학력·경력·주요 경험, 작성 문항과 글자 수, 제출 기관과 마감일을 입력합니다. 기존 서류 첨삭은 이 단계에서 파일도 함께 첨부합니다.",
+    ],
+    [
+      "관리자 검토·승인",
+      "관리자가 신청 내용과 첨부 자료를 확인합니다. 보완이 필요하면 전용 채팅으로 안내하고, 준비가 되면 작업을 승인합니다.",
+    ],
+    [
+      "승인 후 결제",
+      "관리자 승인 알림을 받은 뒤 결제합니다. 결제가 확인되기 전에는 작업이 시작되지 않아 신청 내용을 안전하게 조정할 수 있습니다.",
+    ],
+    [
+      "작업·1:1 피드백",
+      "관리자가 초안을 작성하거나 서류를 첨삭하고, 신청 건별 채팅에서 질문과 수정 의견을 주고받습니다.",
+    ],
+    [
+      "결과물 확인·완성",
+      "완성된 결과물을 확인하고 내려받습니다. 수정이 필요하면 요청하고, 만족하면 완료를 확정해 작업을 종료합니다. 서류와 대화 기록은 신청 건별로 확인할 수 있습니다.",
+    ],
   ];
   return (
     <div className="landing-shell">
@@ -175,15 +196,21 @@ function GuestLanding({
           onClick={() => onStart("edit")}
         >
           <span className="landing-choice-top">
-            <span className="landing-choice-icon"><FileText size={31} /></span>
+            <span className="landing-choice-icon">
+              <FileText size={31} />
+            </span>
             <span className="landing-choice-number">01 / EDITING</span>
           </span>
           <span className="landing-choice-copy">
             <small>작성한 서류가 있다면</small>
             <strong>기존 서류 첨삭</strong>
-            <span>내 경험은 살리고, 지원 기관에 맞게 더 선명하게 다듬어요.</span>
+            <span>
+              내 경험은 살리고, 지원 기관에 맞게 더 선명하게 다듬어요.
+            </span>
           </span>
-          <span className="landing-choice-action">서비스 선택 <ArrowRight size={19} /></span>
+          <span className="landing-choice-action">
+            서비스 선택 <ArrowRight size={19} />
+          </span>
         </button>
         <button
           type="button"
@@ -192,7 +219,9 @@ function GuestLanding({
           onClick={() => onStart("write")}
         >
           <span className="landing-choice-top">
-            <span className="landing-choice-icon"><PenLine size={31} /></span>
+            <span className="landing-choice-icon">
+              <PenLine size={31} />
+            </span>
             <span className="landing-choice-number">02 / WRITING</span>
           </span>
           <span className="landing-choice-copy">
@@ -200,19 +229,29 @@ function GuestLanding({
             <strong>초안부터 작성</strong>
             <span>경험을 함께 정리하고, 첫 문장부터 완성해 나가요.</span>
           </span>
-          <span className="landing-choice-action">서비스 선택 <ArrowRight size={19} /></span>
+          <span className="landing-choice-action">
+            서비스 선택 <ArrowRight size={19} />
+          </span>
         </button>
       </section>
-      <section className="landing-process" aria-labelledby="landing-process-title">
+      <section
+        className="landing-process"
+        aria-labelledby="landing-process-title"
+      >
         <div className="landing-process-heading">
           <span className="eyebrow">HOW IT WORKS</span>
           <h1 id="landing-process-title">신청부터 완성까지</h1>
-          <p>서류를 보내기 전부터 결과물을 확인하는 순간까지, 모든 과정을 한 곳에서 안내해 드립니다.</p>
+          <p>
+            서류를 보내기 전부터 결과물을 확인하는 순간까지, 모든 과정을 한
+            곳에서 안내해 드립니다.
+          </p>
         </div>
         <ol className="landing-process-grid">
           {process.map(([title, description], index) => (
             <li key={title} className="landing-process-step">
-              <span className="landing-process-number">{String(index + 1).padStart(2, "0")}</span>
+              <span className="landing-process-number">
+                {String(index + 1).padStart(2, "0")}
+              </span>
               <div>
                 <h2>{title}</h2>
                 <p>{description}</p>
@@ -222,7 +261,9 @@ function GuestLanding({
         </ol>
         <div className="landing-process-note">
           <ShieldCheck size={21} />
-          <span>제출 자료와 채팅 내용은 해당 고객과 담당 관리자만 확인합니다.</span>
+          <span>
+            제출 자료와 채팅 내용은 해당 고객과 담당 관리자만 확인합니다.
+          </span>
         </div>
       </section>
     </div>
@@ -230,44 +271,245 @@ function GuestLanding({
 }
 
 export default function Adviser() {
+  const routeState = useAppRoute();
+  const {
+    view: requestedView,
+    order: oid,
+    mode: authMode,
+    service: pending,
+  } = routeState;
   const [data, setData] = useState<any>(initial),
-    [view, setView] = useState("services"),
     [busy, setBusy] = useState(false),
     [loading, setLoading] = useState(true),
     [error, setError] = useState(""),
     [detail, setDetail] = useState<any>(null),
-    [oid, setOid] = useState(""),
-    [authMode, setAuthMode] = useState("login"),
-    [pending, setPending] = useState(""),
     [form, setForm] = useState<any>(emptyForm),
     [chat, setChat] = useState(""),
     [filter, setFilter] = useState("all"),
     [search, setSearch] = useState(""),
     [cfg, setCfg] = useState<any>(null),
     [confirm, setConfirm] = useState<any>(null),
-    [consent, setConsent] = useState(false);
-  const admin = data.user?.role === "admin";
-  const guestLanding = !data.user && view === "services";
+    [consent, setConsent] = useState(false),
+    [live, setLive] = useState(false);
+  const dataRef = useRef<any>(initial);
+  const detailSequence = useRef(0);
+  const workspaceSequence = useRef(0);
+  const formOrder = useRef("");
+  const busyRef = useRef(false);
+  const chatList = useRef<HTMLDivElement>(null);
+  const followChat = useRef(true);
   const paymentHandled = useRef(false);
+  const admin = data.user?.role === "admin";
+  let view = requestedView;
+  if (!loading) {
+    if (!data.user && !["services", "auth", "policies"].includes(view))
+      view = "auth";
+    else if (admin && ["services", "auth"].includes(view)) view = "orders";
+    else if (
+      data.user &&
+      (view === "auth" || (!admin && ["members", "settings"].includes(view)))
+    )
+      view = "orders";
+    if (!data.user && window.location.pathname === "/payment/success")
+      view = "auth";
+  }
+  const guestLanding = !data.user && view === "services";
+
+  function navigate(
+    v: string,
+    order = "",
+    replace = false,
+    mode: "login" | "register" = "login",
+    service = "",
+  ) {
+    const target =
+      v === "services" && dataRef.current.user?.role === "admin" ? "orders" : v;
+    setError("");
+    setChat("");
+    setConsent(false);
+    followChat.current = true;
+    writeRoute(
+      { view: target, order: target === "detail" ? order : "", mode, service },
+      replace,
+    );
+  }
+  function setAuthMode(mode: "login" | "register") {
+    // Preserve a payment return URL until its server confirmation has finished.
+    if (window.location.pathname.startsWith("/payment/")) return;
+    writeRoute({ ...routeState, view: "auth", mode });
+  }
+  const refresh = useCallback(async () => {
+    const sequence = ++workspaceSequence.current;
+    const r = await fetch("/api/workspace", { cache: "no-store" });
+    const d: any = await r.json();
+    if (!r.ok) throw new Error(d.error || "작업 목록을 불러오지 못했습니다.");
+    if (sequence === workspaceSequence.current) {
+      if (dataRef.current.user?.id !== d.user?.id) {
+        detailSequence.current++;
+        formOrder.current = "";
+        setDetail(null);
+      }
+      dataRef.current = d;
+      setData(d);
+    }
+    return d;
+  }, []);
+  const loadDetail = useCallback(async (id: string, reset = false) => {
+    const sequence = ++detailSequence.current;
+    const r = await fetch("/api/workspace?order=" + encodeURIComponent(id), {
+      cache: "no-store",
+    });
+    const d: any = await r.json();
+    if (!r.ok || !d.order)
+      throw new Error(
+        d.error || "작업을 불러오지 못했습니다. 로그인 상태를 확인해 주세요.",
+      );
+    const current = readRoute(window.location.href);
+    if (
+      sequence === detailSequence.current &&
+      current.view === "detail" &&
+      current.order === id
+    ) {
+      setDetail(d);
+      if (reset || formOrder.current !== id) {
+        setForm({ ...emptyForm, ...JSON.parse(d.order.form) });
+        formOrder.current = id;
+      }
+    }
+    return d;
+  }, []);
+  useEffect(() => {
+    let active = true;
+    refresh()
+      .catch((e) => {
+        if (active) setError(e.message);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [refresh]);
+  useEffect(() => {
+    if (
+      !loading &&
+      requestedView !== view &&
+      !window.location.pathname.startsWith("/payment/")
+    )
+      writeRoute({ view, order: "", mode: "login", service: pending }, true);
+  }, [loading, view, requestedView, pending]);
+  useEffect(() => {
+    if (loading || !data.user || view !== "detail" || !oid) return;
+    let active = true;
+    setDetail(null);
+    setError("");
+    setChat("");
+    setConsent(false);
+    followChat.current = true;
+    loadDetail(oid, true).catch((e) => {
+      if (active) setError(e.message);
+    });
+    return () => {
+      active = false;
+      detailSequence.current++;
+    };
+  }, [loading, data.user?.id, view, oid, loadDetail]);
+  useEffect(() => {
+    if (view === "settings" && admin && !loading)
+      setCfg({ ...dataRef.current.config });
+  }, [view, admin, loading]);
+  useEffect(() => {
+    if (!data.user) {
+      setLive(false);
+      return;
+    }
+    let stopped = false,
+      running = false,
+      again = false,
+      failed = false;
+    const sync = async () => {
+      if (stopped) return;
+      if (running) {
+        again = true;
+        return;
+      }
+      running = true;
+      try {
+        do {
+          again = false;
+          const d = await refresh();
+          const current = readRoute(window.location.href);
+          if (!stopped && d.user && current.view === "detail" && current.order)
+            await loadDetail(current.order);
+          failed = false;
+        } while (again && !stopped);
+      } catch {
+        // Retry failed API reads even if the event stream stayed connected.
+        failed = true;
+      } finally {
+        running = false;
+      }
+    };
+    const source =
+      typeof EventSource === "undefined"
+        ? null
+        : new EventSource("/api/events");
+    source?.addEventListener("ready", () => {
+      setLive(true);
+      void sync();
+    });
+    source?.addEventListener("workspace", () => void sync());
+    source?.addEventListener("session", () => {
+      setLive(false);
+      source.close();
+      void sync();
+    });
+    if (source)
+      source.onerror = () => {
+        setLive(false);
+        void sync();
+      };
+    const resume = () => {
+      if (document.visibilityState === "visible") void sync();
+    };
+    const timer = setInterval(() => {
+      if (failed || !source || source.readyState !== EventSource.OPEN) resume();
+    }, 5000);
+    window.addEventListener("focus", resume);
+    window.addEventListener("online", resume);
+    document.addEventListener("visibilitychange", resume);
+    return () => {
+      stopped = true;
+      source?.close();
+      clearInterval(timer);
+      window.removeEventListener("focus", resume);
+      window.removeEventListener("online", resume);
+      document.removeEventListener("visibilitychange", resume);
+    };
+  }, [data.user?.id, refresh, loadDetail]);
+  useEffect(() => {
+    const el = chatList.current;
+    const last = detail?.messages?.at(-1);
+    if (el && (followChat.current || last?.user_id === data.user?.id)) {
+      el.scrollTop = el.scrollHeight;
+      followChat.current = true;
+    }
+  }, [detail?.messages?.length, detail?.messages?.at(-1)?.id, data.user?.id]);
   useEffect(() => {
     if (loading || paymentHandled.current) return;
     const url = new URL(window.location.href);
     if (!url.pathname.startsWith("/payment/")) return;
-    if (url.pathname === "/payment/success" && !data.user) {
-      setView("auth");
-      setAuthMode("login");
-      return;
-    }
+    if (url.pathname === "/payment/success" && !data.user) return;
     paymentHandled.current = true;
-    history.replaceState(null, "", "/");
     if (url.pathname === "/payment/fail") {
       toast.error(
         "결제가 취소되었거나 완료되지 않았습니다. 마이페이지에서 다시 진행해 주세요.",
       );
-      setView(data.user ? "orders" : "services");
+      navigate(data.user ? "orders" : "services", "", true);
       return;
     }
-    run(async () => {
+    void run(async () => {
       const p = await paymentApi({
         action: "confirm",
         orderId: url.searchParams.get("orderId"),
@@ -275,59 +517,16 @@ export default function Adviser() {
         amount: Number(url.searchParams.get("amount")),
       });
       await refresh();
-      await loadDetail(p.id, true);
-      setOid(p.id);
-      setView("detail");
+      navigate("detail", p.id, true);
       toast.success("결제가 확인되었습니다.");
+      return true;
+    }).then((ok) => {
+      if (!ok) navigate("orders", "", true);
     });
-  }, [loading, data.user]);
-  const refresh = useCallback(async () => {
-    const r = await fetch("/api/workspace");
-    const d: any = await r.json();
-    if (!r.ok) throw new Error(d.error);
-    setData(d);
-    setError("");
-    if (!d.user) {
-      setOid("");
-      setDetail(null);
-      setView((v) =>
-        [
-          "detail",
-          "orders",
-          "notices",
-          "account",
-          "settings",
-          "members",
-        ].includes(v)
-          ? "auth"
-          : v,
-      );
-    }
-    return d;
-  }, []);
-  const loadDetail = useCallback(async (id: string, reset = false) => {
-    const r = await fetch("/api/workspace?order=" + encodeURIComponent(id));
-    const d: any = await r.json();
-    if (!r.ok) throw new Error(d.error);
-    setDetail(d);
-    if (reset) setForm({ ...emptyForm, ...JSON.parse(d.order.form) });
-    return d;
-  }, []);
-  useEffect(() => {
-    refresh()
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, [refresh]);
-  useEffect(() => {
-    if (!data.user) return;
-    const timer = setInterval(() => {
-      refresh().catch(() => {});
-      if (oid) loadDetail(oid).catch(() => {});
-    }, 10000);
-    return () => clearInterval(timer);
-  }, [data.user?.id, oid, refresh, loadDetail]);
+  }, [loading, data.user?.id]);
   async function run(fn: () => Promise<any>) {
-    if (busy) return;
+    if (busyRef.current) return null;
+    busyRef.current = true;
     setBusy(true);
     try {
       return await fn();
@@ -335,51 +534,44 @@ export default function Adviser() {
       toast.error(e.message);
       return null;
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   }
-  async function openOrder(id: string) {
-    await run(async () => {
-      await loadDetail(id, true);
-      setOid(id);
-      setView("detail");
-      setChat("");
-      setConsent(false);
-    });
+  function openOrder(id: string) {
+    navigate("detail", id);
   }
   async function start(service: string) {
+    if (admin) {
+      navigate("orders");
+      return;
+    }
     if (!data.user) {
-      setPending(service);
-      setAuthMode("login");
-      setView("auth");
+      navigate("auth", "", false, "login", service);
       return;
     }
     await run(async () => {
       const r = await api({ action: "create", service });
       await refresh();
-      await loadDetail(r.id, true);
-      setOid(r.id);
-      setView("detail");
+      navigate("detail", r.id);
     });
-  }
-  function navigate(v: string) {
-    setView(v);
-    setOid("");
-    setDetail(null);
-    if (v === "settings") setCfg({ ...data.config });
   }
   async function act(action: string, extra: any = {}) {
     return run(async () => {
       await api({ action, id: oid, ...extra });
       await refresh();
       if (oid) await loadDetail(oid);
-      toast.success("반영되었습니다.");
+      if (action !== "chat") toast.success("반영되었습니다.");
       return true;
     });
   }
   async function login(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
+    if (authMode === "register" && !validPassword(fd.get("password"))) {
+      toast.error(passwordRuleMessage);
+      return;
+    }
     await run(async () => {
       await api({
         action: authMode === "register" ? "register" : "login",
@@ -388,14 +580,13 @@ export default function Adviser() {
         name: fd.get("name"),
       });
       const d = await refresh();
+      if (window.location.pathname.startsWith("/payment/")) return;
       if (pending && d.user.role !== "admin") {
         const r = await api({ action: "create", service: pending });
-        await loadDetail(r.id, true);
-        setOid(r.id);
-        setView("detail");
-        setPending("");
         await refresh();
-      } else setView(d.user.role === "admin" ? "orders" : "services");
+        navigate("detail", r.id, true);
+      } else
+        navigate(d.user.role === "admin" ? "orders" : "services", "", true);
     });
   }
   async function upload(file: File | undefined, kind = "source") {
@@ -413,7 +604,7 @@ export default function Adviser() {
     });
   }
   const unread = data.notices.filter((n: any) => !n.seen).length;
-  const o = detail?.order;
+  const o = detail?.order?.id === oid ? detail.order : null;
   const steps = [
     "draft",
     "approval",
@@ -428,264 +619,294 @@ export default function Adviser() {
           ? "draft"
           : o.status === "application_supplement"
             ? "approval"
-            : ["received", "supplement"].includes(o.status)
-              ? "working"
-              : o.status,
+            : o.status === "closed"
+              ? "complete"
+              : ["received", "supplement"].includes(o.status)
+                ? "working"
+                : o.status,
       )
     : -1;
   return (
     <>
       <Toaster theme="light" richColors />
-      {!guestLanding && <header className="topbar">
-        <a href="/" className="brand">
-          <span className="brand-mark">
-            A<span />
-          </span>
-          Adviser<span className="brand-label">DOCUMENT STUDIO</span>
-        </a>
-        <nav aria-label="주 메뉴">
-          <button
-            className={view === "services" ? "active" : ""}
-            onClick={() => navigate("services")}
-          >
-            서비스 신청
-          </button>
-          <button
-            className={view === "orders" ? "active" : ""}
-            onClick={() =>
-              data.user
-                ? navigate("orders")
-                : (setView("auth"), setAuthMode("login"))
-            }
-          >
-            {admin ? "전체 작업" : "마이페이지"}
-          </button>
-          {admin && (
-            <button
-              className={view === "members" ? "active" : ""}
-              onClick={() => navigate("members")}
-            >
-              회원 관리
-            </button>
-          )}
-          {admin && (
-            <button
-              className={view === "settings" ? "active" : ""}
-              onClick={() => navigate("settings")}
-            >
-              운영 설정
-            </button>
-          )}
-        </nav>
-        <div className="account">
-          {data.user ? (
-            <>
+      {!loading && !guestLanding && (
+        <header className="topbar">
+          <a href="/" className="brand">
+            <span className="brand-mark">
+              A<span />
+            </span>
+            Adviser<span className="brand-label">DOCUMENT STUDIO</span>
+          </a>
+          <nav aria-label="주 메뉴">
+            {!admin && (
               <button
-                aria-label={`알림 ${unread}개`}
-                className="icon-button"
-                onClick={() => navigate("notices")}
+                className={view === "services" ? "active" : ""}
+                onClick={() => navigate("services")}
               >
-                <Bell size={20} />
-                {unread > 0 && (
-                  <span className="notification-count">{unread}</span>
-                )}
+                서비스 신청
               </button>
-              <button
-                className="account-name"
-                onClick={() => navigate("account")}
-              >
-                <span className="avatar">{data.user.name.slice(0, 1)}</span>
-                {data.user.name}
-              </button>
-              <button
-                className="icon-button"
-                aria-label="로그아웃"
-                onClick={() =>
-                  run(async () => {
-                    await api({ action: "logout" });
-                    setPending("");
-                    await refresh();
-                    navigate("services");
-                  })
-                }
-              >
-                <LogOut size={18} />
-                <span className="logout-label">로그아웃</span>
-              </button>
-            </>
-          ) : (
+            )}
             <button
-              className="btn small"
-              onClick={() => {
-                setAuthMode("login");
-                setView("auth");
-              }}
+              className={view === "orders" ? "active" : ""}
+              onClick={() =>
+                data.user ? navigate("orders") : navigate("auth")
+              }
             >
-              로그인 <ArrowUpRight size={16} />
+              {admin ? "전체 작업" : "마이페이지"}
             </button>
-          )}
-        </div>
-      </header>}
+            {admin && (
+              <button
+                className={view === "members" ? "active" : ""}
+                onClick={() => navigate("members")}
+              >
+                회원 관리
+              </button>
+            )}
+            {admin && (
+              <button
+                className={view === "settings" ? "active" : ""}
+                onClick={() => navigate("settings")}
+              >
+                운영 설정
+              </button>
+            )}
+          </nav>
+          <div className="account">
+            {data.user ? (
+              <>
+                <button
+                  aria-label={`알림 ${unread}개`}
+                  className="icon-button"
+                  onClick={() => navigate("notices")}
+                >
+                  <Bell size={20} />
+                  {unread > 0 && (
+                    <span className="notification-count">{unread}</span>
+                  )}
+                </button>
+                <button
+                  className="account-name"
+                  onClick={() => navigate("account")}
+                >
+                  <span className="avatar">{data.user.name.slice(0, 1)}</span>
+                  {data.user.name}
+                </button>
+                <button
+                  className="icon-button"
+                  aria-label="로그아웃"
+                  onClick={() =>
+                    run(async () => {
+                      await api({ action: "logout" });
+                      workspaceSequence.current++;
+                      detailSequence.current++;
+                      formOrder.current = "";
+                      dataRef.current = {
+                        ...dataRef.current,
+                        user: null,
+                        orders: [],
+                        notices: [],
+                      };
+                      setData(dataRef.current);
+                      setDetail(null);
+                      navigate("services");
+                    })
+                  }
+                >
+                  <LogOut size={18} />
+                  <span className="logout-label">로그아웃</span>
+                </button>
+              </>
+            ) : (
+              <button
+                className="btn small"
+                onClick={() => {
+                  setAuthMode("login");
+                  navigate("auth");
+                }}
+              >
+                로그인 <ArrowUpRight size={16} />
+              </button>
+            )}
+          </div>
+        </header>
+      )}
       <main className="main">
-        {error && (
-          <div role="alert" className="warning">
-            {error} <button onClick={() => run(refresh)}>다시 불러오기</button>
+        {loading && (
+          <div className="panel" role="status">
+            화면을 불러오고 있어요.
           </div>
         )}
-        {view === "services" && (
-          !data.user ? (
+        {error && (
+          <div role="alert" className="warning">
+            {error}{" "}
+            <button
+              onClick={() =>
+                run(async () => {
+                  await refresh();
+                  if (view === "detail" && oid) await loadDetail(oid);
+                  setError("");
+                })
+              }
+            >
+              다시 불러오기
+            </button>
+          </div>
+        )}
+        {!loading &&
+          view === "services" &&
+          !admin &&
+          (!data.user ? (
             <GuestLanding
               onStart={start}
               disabled={busy || loading || !!error}
             />
           ) : (
             <>
-            <div className="page-intro">
-              <span className="eyebrow">YOUR NEXT CHAPTER</span>
-              <h1>
-                당신의 경험이,
-                <br />
-                <span>좋은 서류가 되는 곳.</span>
-              </h1>
-              <p>
-                이미 쓴 글도, 아직 꺼내지 못한 이야기도.
-                <br className="mobile-break" /> 지금 필요한 도움을 선택해
-                주세요.
-              </p>
-            </div>
-            <div className="service-layout">
-              <div className="service-grid">
-                <article className="service-card">
-                  <div className="card-top">
-                    <span className="service-icon">
-                      <FileText size={27} />
-                    </span>
-                    <span className="number">01 / EDITING</span>
-                  </div>
-                  <span className="tag">작성한 서류가 있다면</span>
-                  <h2>기존 서류 첨삭</h2>
-                  <p className="card-desc">
-                    담아둔 경험은 살리고,
-                    <br />
-                    전달력과 완성도를 높여요.
-                  </p>
-                  <ul className="checklist">
-                    <li>
-                      <Check />
-                      문장·구조·논리 흐름 검토
-                    </li>
-                    <li>
-                      <Check />
-                      지원 기관과 직무에 맞춘 피드백
-                    </li>
-                    <li>
-                      <Check />
-                      전문가와 1:1 채팅 및 수정 협의
-                    </li>
-                  </ul>
-                  <div className="price">
-                    <strong>{won(data.config.editPrice)}</strong>
-                    <span>서비스 1건 기준</span>
-                  </div>
-                  <button
-                    className="btn full"
-                    disabled={busy || loading || !!error}
-                    onClick={() => start("edit")}
-                  >
-                    첨삭 신청하기 <ArrowRight size={18} />
-                  </button>
-                </article>
-                <article className="service-card blue-card">
-                  <div className="card-top">
-                    <span className="service-icon">
-                      <PenLine size={27} />
-                    </span>
-                    <span className="number">02 / WRITING</span>
-                  </div>
-                  <span className="tag">어디서부터 쓸지 막막하다면</span>
-                  <h2>초안 작성 지원</h2>
-                  <p className="card-desc">
-                    경험을 함께 정리하고,
-                    <br />첫 문장부터 완성해 나가요.
-                  </p>
-                  <ul className="checklist">
-                    <li>
-                      <Check />
-                      설문으로 학력·경력·경험 정리
-                    </li>
-                    <li>
-                      <Check />
-                      상담을 바탕으로 전문가가 초안 작성
-                    </li>
-                    <li>
-                      <Check />
-                      고객 피드백을 반영한 공동 완성
-                    </li>
-                  </ul>
-                  <div className="price">
-                    <strong>{won(data.config.writePrice)}</strong>
-                    <span>서비스 1건 기준</span>
-                  </div>
-                  <button
-                    className="btn full"
-                    disabled={busy || loading || !!error}
-                    onClick={() => start("write")}
-                  >
-                    작성 지원 신청하기 <ArrowRight size={18} />
-                  </button>
-                </article>
+              <div className="page-intro">
+                <span className="eyebrow">YOUR NEXT CHAPTER</span>
+                <h1>
+                  당신의 경험이,
+                  <br />
+                  <span>좋은 서류가 되는 곳.</span>
+                </h1>
+                <p>
+                  이미 쓴 글도, 아직 꺼내지 못한 이야기도.
+                  <br className="mobile-break" /> 지금 필요한 도움을 선택해
+                  주세요.
+                </p>
               </div>
-              <aside className="process-card">
-                <span className="eyebrow">HOW IT WORKS</span>
-                <h3>신청부터 완성까지</h3>
-                <ol>
-                  {[
-                    ["서류 첨부·신청", "설문과 제출 서류를 보내 주세요."],
-                    ["관리자 검토·승인", "필요하면 자료를 보완해요."],
-                    ["승인 후 결제", "승인 알림을 받은 후 결제해요."],
-                    ["작업·결과물 받기", "채팅으로 피드백을 나눠요."],
-                  ].map(([a, b], i) => (
-                    <li key={a}>
-                      <span className="step-no">{i + 1}</span>
-                      <div>
-                        <strong>{a}</strong>
-                        <p>{b}</p>
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-                <div className="private-note">
-                  <ShieldCheck size={23} />
-                  <p>
-                    나의 서류는
-                    <br />
-                    <strong>나와 담당 관리자만</strong> 확인해요.
-                  </p>
+              <div className="service-layout">
+                <div className="service-grid">
+                  <article className="service-card">
+                    <div className="card-top">
+                      <span className="service-icon">
+                        <FileText size={27} />
+                      </span>
+                      <span className="number">01 / EDITING</span>
+                    </div>
+                    <span className="tag">작성한 서류가 있다면</span>
+                    <h2>기존 서류 첨삭</h2>
+                    <p className="card-desc">
+                      담아둔 경험은 살리고,
+                      <br />
+                      전달력과 완성도를 높여요.
+                    </p>
+                    <ul className="checklist">
+                      <li>
+                        <Check />
+                        문장·구조·논리 흐름 검토
+                      </li>
+                      <li>
+                        <Check />
+                        지원 기관과 직무에 맞춘 피드백
+                      </li>
+                      <li>
+                        <Check />
+                        전문가와 1:1 채팅 및 수정 협의
+                      </li>
+                    </ul>
+                    <div className="price">
+                      <strong>{won(data.config.editPrice)}</strong>
+                      <span>서비스 1건 기준</span>
+                    </div>
+                    <button
+                      className="btn full"
+                      disabled={busy || loading || !!error}
+                      onClick={() => start("edit")}
+                    >
+                      첨삭 신청하기 <ArrowRight size={18} />
+                    </button>
+                  </article>
+                  <article className="service-card blue-card">
+                    <div className="card-top">
+                      <span className="service-icon">
+                        <PenLine size={27} />
+                      </span>
+                      <span className="number">02 / WRITING</span>
+                    </div>
+                    <span className="tag">어디서부터 쓸지 막막하다면</span>
+                    <h2>초안 작성 지원</h2>
+                    <p className="card-desc">
+                      경험을 함께 정리하고,
+                      <br />첫 문장부터 완성해 나가요.
+                    </p>
+                    <ul className="checklist">
+                      <li>
+                        <Check />
+                        설문으로 학력·경력·경험 정리
+                      </li>
+                      <li>
+                        <Check />
+                        상담을 바탕으로 전문가가 초안 작성
+                      </li>
+                      <li>
+                        <Check />
+                        고객 피드백을 반영한 공동 완성
+                      </li>
+                    </ul>
+                    <div className="price">
+                      <strong>{won(data.config.writePrice)}</strong>
+                      <span>서비스 1건 기준</span>
+                    </div>
+                    <button
+                      className="btn full"
+                      disabled={busy || loading || !!error}
+                      onClick={() => start("write")}
+                    >
+                      작성 지원 신청하기 <ArrowRight size={18} />
+                    </button>
+                  </article>
                 </div>
-              </aside>
-            </div>
-            <div className="service-bottom">
-              <div>
-                <MessageSquare />
-                <span>
-                  신청 이후에는 전용 채팅에서
-                  <br />
-                  <strong>자료부터 피드백까지 한곳에서.</strong>
-                </span>
+                <aside className="process-card">
+                  <span className="eyebrow">HOW IT WORKS</span>
+                  <h3>신청부터 완성까지</h3>
+                  <ol>
+                    {[
+                      ["서류 첨부·신청", "설문과 제출 서류를 보내 주세요."],
+                      ["관리자 검토·승인", "필요하면 자료를 보완해요."],
+                      ["승인 후 결제", "승인 알림을 받은 후 결제해요."],
+                      ["작업·결과물 받기", "채팅으로 피드백을 나눠요."],
+                    ].map(([a, b], i) => (
+                      <li key={a}>
+                        <span className="step-no">{i + 1}</span>
+                        <div>
+                          <strong>{a}</strong>
+                          <p>{b}</p>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                  <div className="private-note">
+                    <ShieldCheck size={23} />
+                    <p>
+                      나의 서류는
+                      <br />
+                      <strong>나와 담당 관리자만</strong> 확인해요.
+                    </p>
+                  </div>
+                </aside>
               </div>
-              <div>
-                <Clock />
-                <span>
-                  제출 마감일을 알려 주세요.
-                  <br />
-                  <strong>작업 일정은 상담 후 확정해요.</strong>
-                </span>
+              <div className="service-bottom">
+                <div>
+                  <MessageSquare />
+                  <span>
+                    신청 이후에는 전용 채팅에서
+                    <br />
+                    <strong>자료부터 피드백까지 한곳에서.</strong>
+                  </span>
+                </div>
+                <div>
+                  <Clock />
+                  <span>
+                    제출 마감일을 알려 주세요.
+                    <br />
+                    <strong>작업 일정은 상담 후 확정해요.</strong>
+                  </span>
+                </div>
               </div>
-            </div>
             </>
-          )
-        )}
-        {view === "auth" && (
+          ))}
+        {!loading && view === "auth" && (
           <div className="auth-layout">
             <div className="auth-copy">
               <span className="eyebrow">MY DOCUMENT STUDIO</span>
@@ -706,7 +927,7 @@ export default function Adviser() {
                 </span>
                 <span>
                   <MessageSquare />
-                  관리자와 1:1 피드백
+                  전문가와 1:1 피드백
                 </span>
                 <span>
                   <LockKeyhole />
@@ -716,11 +937,15 @@ export default function Adviser() {
             </div>
             <section className="panel auth-panel">
               <span className="auth-kicker">ADVISER ACCOUNT</span>
-              <h2>{authMode === "register" ? "작업실을 만들어 보세요" : "다시 만나 반가워요"}</h2>
+              <h2>
+                {authMode === "register"
+                  ? "작업실을 만들어 보세요"
+                  : "다시 만나 반가워요"}
+              </h2>
               <p className="muted">
                 {authMode === "register"
                   ? "이메일과 비밀번호로 간편하게 시작하세요."
-                  : "고객과 관리자가 같은 화면에서 로그인합니다."}
+                  : "아이디 또는 이메일과 비밀번호를 입력해 주세요."}
               </p>
               <form onSubmit={login}>
                 {authMode === "register" && (
@@ -736,14 +961,18 @@ export default function Adviser() {
                   </label>
                 )}
                 <label>
-                  {authMode === "register" ? "이메일" : "이메일 또는 관리자 아이디"}
+                  {authMode === "register" ? "이메일" : "아이디 또는 이메일"}
                   <input
                     name="email"
                     type={authMode === "register" ? "email" : "text"}
                     required
                     maxLength={254}
                     autoComplete="username"
-                    placeholder={authMode === "register" ? "name@example.com" : "이메일 또는 ADMIN"}
+                    placeholder={
+                      authMode === "register"
+                        ? "name@example.com"
+                        : "아이디 또는 이메일을 입력해 주세요"
+                    }
                   />
                 </label>
                 <label>
@@ -752,8 +981,11 @@ export default function Adviser() {
                     name="password"
                     type="password"
                     required
-                    minLength={authMode === "register" ? 10 : 1}
-                    maxLength={128}
+                    minLength={authMode === "register" ? 8 : 1}
+                    maxLength={authMode === "register" ? 16 : 128}
+                    title={
+                      authMode === "register" ? passwordRuleMessage : undefined
+                    }
                     autoComplete={
                       authMode === "register"
                         ? "new-password"
@@ -761,7 +993,7 @@ export default function Adviser() {
                     }
                     placeholder={
                       authMode === "register"
-                        ? "10자 이상 입력해 주세요"
+                        ? "8~16자, 특수문자 1개 이상"
                         : "비밀번호를 입력해 주세요"
                     }
                   />
@@ -769,7 +1001,7 @@ export default function Adviser() {
                 {authMode === "register" && (
                   <p className="fine">
                     자주 사용하는 이메일로 가입해 주세요. 비밀번호를 잊었다면
-                    담당 관리자에게 문의해 주세요.
+                    고객 지원에 문의해 주세요.
                   </p>
                 )}
                 <button className="btn full" disabled={busy || !!error}>
@@ -781,15 +1013,14 @@ export default function Adviser() {
               <button
                 type="button"
                 className="auth-switch"
-                onClick={() => setAuthMode(authMode === "register" ? "login" : "register")}
+                onClick={() =>
+                  setAuthMode(authMode === "register" ? "login" : "register")
+                }
               >
                 {authMode === "register"
                   ? "이미 계정이 있나요? 로그인"
                   : "계정이 없으신가요? 회원가입"}
               </button>
-              {authMode === "login" && (
-                <p className="auth-admin-hint">관리자는 이메일 대신 <strong>ADMIN</strong>을 입력해 주세요.</p>
-              )}
             </section>
           </div>
         )}
@@ -803,9 +1034,11 @@ export default function Adviser() {
                 <h1>{admin ? "전체 작업 관리" : "나의 작업실"}</h1>
                 <p>서류의 시작부터 완성까지, 진행 상황을 확인하세요.</p>
               </div>
-              <button className="btn" onClick={() => navigate("services")}>
-                새 신청 <ArrowUpRight size={17} />
-              </button>
+              {!admin && (
+                <button className="btn" onClick={() => navigate("services")}>
+                  새 신청 <ArrowUpRight size={17} />
+                </button>
+              )}
             </div>
             <div className="stats">
               {[
@@ -832,8 +1065,9 @@ export default function Adviser() {
                 ],
                 [
                   "작업 완료",
-                  data.orders.filter((o: any) => o.status === "complete")
-                    .length,
+                  data.orders.filter((o: any) =>
+                    ["complete", "closed"].includes(o.status),
+                  ).length,
                 ],
               ].map(([t, n]) => (
                 <div key={t}>
@@ -908,17 +1142,30 @@ export default function Adviser() {
               <Empty className="empty-block">
                 <EmptyHeader>
                   <FolderOpen size={36} />
-                  <EmptyTitle>아직 신청한 작업이 없어요</EmptyTitle>
+                  <EmptyTitle>
+                    {admin
+                      ? "아직 접수된 작업이 없어요"
+                      : "아직 신청한 작업이 없어요"}
+                  </EmptyTitle>
                   <EmptyDescription>
-                    필요한 서비스를 선택하고 첫 서류 작업을 시작해 보세요.
+                    {admin
+                      ? "고객이 신청하면 이곳에서 요청사항과 첨부파일을 확인할 수 있습니다."
+                      : "필요한 서비스를 선택하고 첫 서류 작업을 시작해 보세요."}
                   </EmptyDescription>
                 </EmptyHeader>
-                <button className="btn" onClick={() => navigate("services")}>
-                  서비스 둘러보기
-                </button>
+                {!admin && (
+                  <button className="btn" onClick={() => navigate("services")}>
+                    서비스 둘러보기
+                  </button>
+                )}
               </Empty>
             )}
           </>
+        )}
+        {view === "detail" && !o && data.user && !error && (
+          <div className="panel" role="status">
+            작업을 불러오고 있어요.
+          </div>
         )}
         {view === "detail" && o && data.user && (
           <>
@@ -1378,6 +1625,7 @@ export default function Adviser() {
                     "refunded",
                     "cancel_requested",
                     "rejected",
+                    "closed",
                   ].includes(o.status) && (
                     <div className="uploads">
                       <label className="upload">
@@ -1414,6 +1662,41 @@ export default function Adviser() {
                     </div>
                   )}
                 </section>
+                {!admin && o.status === "complete" && (
+                  <section className="panel completion-panel">
+                    <h2>결과물이 만족스러우신가요?</h2>
+                    <p className="muted">
+                      최종 서류를 확인한 뒤 작업을 종료해 주세요. 수정이
+                      필요하면 아래에서 요청할 수 있어요.
+                    </p>
+                    <button
+                      className="btn"
+                      disabled={busy}
+                      onClick={() =>
+                        setConfirm({
+                          title: "결과물을 확인하고 작업을 종료할까요?",
+                          description:
+                            "완료를 확정하면 수정 요청과 대화가 종료됩니다. 기존 대화와 첨부파일은 계속 확인할 수 있습니다.",
+                          action: "acceptComplete",
+                        })
+                      }
+                    >
+                      <CheckCircle2 size={18} /> 완료 확인 · 작업 종료
+                    </button>
+                  </section>
+                )}
+                {o.status === "closed" && (
+                  <div className="notice completion-notice" role="status">
+                    <CheckCircle2 />
+                    <div>
+                      <strong>완료가 확정된 작업입니다.</strong>
+                      <p>
+                        고객이 결과물을 확인하고 작업을 종료했습니다. 서류와
+                        대화 기록은 계속 확인할 수 있습니다.
+                      </p>
+                    </div>
+                  </div>
+                )}
                 {!admin && ["review", "complete"].includes(o.status) && (
                   <section className="panel">
                     <h2>수정 요청</h2>
@@ -1449,6 +1732,7 @@ export default function Adviser() {
                   "refunded",
                   "cancel_requested",
                   "rejected",
+                  "closed",
                 ].includes(o.status) && (
                   <button
                     className="text-button danger"
@@ -1467,9 +1751,13 @@ export default function Adviser() {
                   </button>
                 )}
                 {admin &&
-                  ["complete", "cancelled", "refunded", "rejected"].includes(
-                    o.status,
-                  ) &&
+                  [
+                    "complete",
+                    "closed",
+                    "cancelled",
+                    "refunded",
+                    "rejected",
+                  ].includes(o.status) &&
                   detail.files.length > 0 && (
                     <button
                       className="text-button danger"
@@ -1513,8 +1801,15 @@ export default function Adviser() {
                 </div>
                 <div
                   className="chat-messages"
+                  ref={chatList}
                   role="log"
                   aria-label="채팅 메시지"
+                  aria-live="polite"
+                  onScroll={(e) => {
+                    const el = e.currentTarget;
+                    followChat.current =
+                      el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+                  }}
                 >
                   {!detail.messages.length && (
                     <div className="chat-empty">
@@ -1567,16 +1862,21 @@ export default function Adviser() {
                     placeholder="메시지를 입력해 주세요"
                     value={chat}
                     onChange={(e) => setChat(e.target.value)}
-                    disabled={["cancelled", "refunded", "rejected"].includes(
-                      o.status,
-                    )}
+                    disabled={[
+                      "cancelled",
+                      "refunded",
+                      "rejected",
+                      "closed",
+                    ].includes(o.status)}
                   />
                   <button
                     className="btn"
                     disabled={
                       busy ||
                       !chat.trim() ||
-                      ["cancelled", "refunded", "rejected"].includes(o.status)
+                      ["cancelled", "refunded", "rejected", "closed"].includes(
+                        o.status,
+                      )
                     }
                     aria-label="메시지 보내기"
                   >
@@ -1584,7 +1884,11 @@ export default function Adviser() {
                   </button>
                 </form>
                 <p className="fine chat-fine">
-                  새 메시지는 자동으로 갱신됩니다.
+                  {o.status === "closed"
+                    ? "종료된 작업의 대화 기록입니다."
+                    : live
+                      ? "새 메시지가 실시간으로 반영됩니다."
+                      : "연결을 복구하고 있어요. 새 메시지를 자동으로 확인합니다."}
                 </p>
               </aside>
             </div>
@@ -1776,6 +2080,10 @@ export default function Adviser() {
               onSubmit={(e) => {
                 e.preventDefault();
                 const f = new FormData(e.currentTarget);
+                if (!validPassword(f.get("password"))) {
+                  toast.error(passwordRuleMessage);
+                  return;
+                }
                 run(async () => {
                   await api({
                     action: "password",
@@ -1783,8 +2091,7 @@ export default function Adviser() {
                     password: f.get("password"),
                   });
                   await refresh();
-                  setView("auth");
-                  setAuthMode("login");
+                  navigate("auth");
                   toast.success(
                     "비밀번호가 변경되었습니다. 다시 로그인해 주세요.",
                   );
@@ -1807,8 +2114,10 @@ export default function Adviser() {
                   type="password"
                   autoComplete="new-password"
                   required
-                  minLength={10}
-                  maxLength={128}
+                  minLength={8}
+                  maxLength={16}
+                  title={passwordRuleMessage}
+                  placeholder="8~16자, 특수문자 1개 이상"
                 />
               </label>
               <button className="btn" disabled={busy}>
@@ -1838,17 +2147,21 @@ export default function Adviser() {
           </section>
         )}
       </main>
-      {!guestLanding && <footer>
-        <div>
-          <strong>Adviser</strong>
-          <span>당신의 다음 기회를 함께 씁니다.</span>
-        </div>
-        <div>
-          <button onClick={() => navigate("services")}>서비스</button>
-          <button onClick={() => setView("policies")}>이용·자료 안내</button>
-          <span>© {new Date().getFullYear()} Adviser</span>
-        </div>
-      </footer>}
+      {!guestLanding && (
+        <footer>
+          <div>
+            <strong>Adviser</strong>
+            <span>당신의 다음 기회를 함께 씁니다.</span>
+          </div>
+          <div>
+            <button onClick={() => navigate(admin ? "orders" : "services")}>
+              {admin ? "전체 작업" : "서비스"}
+            </button>
+            <button onClick={() => navigate("policies")}>이용·자료 안내</button>
+            <span>© {new Date().getFullYear()} Adviser</span>
+          </div>
+        </footer>
+      )}
       <AlertDialog
         open={!!confirm}
         onOpenChange={(v) => {

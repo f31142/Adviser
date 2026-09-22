@@ -19,6 +19,10 @@ import {
   sessionCookie,
 } from "./core.ts";
 import { listMembers, deleteMember } from "./members.ts";
+import {
+  passwordRuleMessage,
+  validPassword,
+} from "../../../lib/password-policy.ts";
 
 export async function GET(req: Request) {
   try {
@@ -107,11 +111,11 @@ export async function POST(req: Request) {
       if (action === "register") {
         if (
           !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
-          password.length < 10 ||
+          !validPassword(password) ||
           !String(b.name || "").trim() ||
           String(b.name).length > 60
         )
-          fail("이름, 이메일과 10자 이상의 비밀번호를 입력해 주세요.");
+          fail("이름과 이메일을 확인해 주세요. " + passwordRuleMessage);
         const id = uuid();
         try {
           await db()
@@ -178,12 +182,8 @@ export async function POST(req: Request) {
       await limited("password:" + u.id);
       if (!(await verify(String(b.current || ""), row.password)))
         fail("현재 비밀번호가 일치하지 않습니다.");
-      if (
-        typeof b.password !== "string" ||
-        b.password.length < 10 ||
-        b.password.length > 128
-      )
-        fail("새 비밀번호는 10~128자로 입력해 주세요.");
+      if (typeof b.password !== "string" || !validPassword(b.password))
+        fail(passwordRuleMessage);
       await db().batch([
         db()
           .prepare("UPDATE users SET password=? WHERE id=?")
@@ -458,8 +458,26 @@ export async function POST(req: Request) {
           "결제가 확인되었습니다. 작업이 접수되었습니다.",
         )),
       );
+    } else if (action === "acceptComplete") {
+      if (u.role === "admin") fail("고객 계정에서만 완료할 수 있습니다.", 403);
+      if (o.status !== "complete" || o.payment !== "paid")
+        fail("관리자가 작업을 완료한 건만 종료할 수 있습니다.");
+      statements.push(
+        db()
+          .prepare(
+            "UPDATE orders SET status='closed',updated=? WHERE id=? AND status='complete'",
+          )
+          .bind(now(), o.id),
+        message(
+          o.id,
+          u,
+          "고객이 결과물을 확인하고 작업을 종료했습니다.",
+          "system",
+        ),
+        ...(await notifyOther(o, u, "고객이 작업 완료를 확인했습니다.")),
+      );
     } else if (action === "chat") {
-      if (["cancelled", "refunded", "rejected"].includes(o.status))
+      if (["cancelled", "refunded", "rejected", "closed"].includes(o.status))
         fail("종료된 작업에는 메시지를 보낼 수 없습니다.");
       if (typeof b.body !== "string" || !b.body.trim() || b.body.length > 5000)
         fail("메시지는 1~5,000자로 입력해 주세요.");
@@ -519,9 +537,13 @@ export async function POST(req: Request) {
       );
     } else if (action === "cancel") {
       if (
-        ["cancelled", "cancel_requested", "refunded", "rejected"].includes(
-          o.status,
-        )
+        [
+          "cancelled",
+          "cancel_requested",
+          "refunded",
+          "rejected",
+          "closed",
+        ].includes(o.status)
       )
         fail("이미 취소 처리 중이거나 종료되었습니다.");
       if (
@@ -579,7 +601,9 @@ export async function POST(req: Request) {
     } else if (action === "purgeFiles") {
       if (
         u.role !== "admin" ||
-        !["complete", "cancelled", "refunded", "rejected"].includes(o.status)
+        !["complete", "closed", "cancelled", "refunded", "rejected"].includes(
+          o.status,
+        )
       )
         fail("종료된 작업의 자료만 관리자가 삭제할 수 있습니다.", 403);
       const fs = await db()

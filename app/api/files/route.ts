@@ -23,9 +23,13 @@ export async function POST(req: Request) {
       o = await own(String(f.get("id")), u),
       file = f.get("file");
     if (
-      ["cancelled", "refunded", "cancel_requested", "rejected"].includes(
-        o.status,
-      )
+      [
+        "cancelled",
+        "refunded",
+        "cancel_requested",
+        "rejected",
+        "closed",
+      ].includes(o.status)
     )
       fail("종료되거나 취소 요청된 작업에는 첨부할 수 없습니다.");
     if (

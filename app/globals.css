@@ -863,16 +863,6 @@ textarea {
   color: #243eac;
   text-decoration: underline;
 }
-.auth-admin-hint {
-  color: #98a1b0;
-  font-size: 12px;
-  text-align: center;
-  margin-top: 13px;
-}
-.auth-admin-hint strong {
-  color: #6d7da0;
-  font-weight: 700;
-}
 .section-heading {
   display: flex;
   justify-content: space-between;
@@ -1733,4 +1723,18 @@ textarea {
 .badge.rejected {
   background: #fff0ee;
   color: #a0554d;
+}
+
+.badge.closed {
+  background: #e8f4ee;
+  color: #27614b;
+}
+.completion-panel {
+  border-color: #a9c8b9;
+}
+.completion-panel .btn {
+  margin-top: 20px;
+}
+.completion-notice {
+  margin-bottom: 24px;
 }

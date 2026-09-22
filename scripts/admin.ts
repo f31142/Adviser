@@ -1,6 +1,7 @@
 import { createRuntime, configureRuntime } from "../server/runtime.ts";
 import { passwordHash } from "../server/password.ts";
 import { readdirSync } from "node:fs";
+import { validPassword, passwordRuleMessage } from "../lib/password-policy.ts";
 
 const command = process.argv[2];
 if (!["reset-password", "reset-customers"].includes(command)) {
@@ -18,10 +19,8 @@ try {
   if (command === "reset-password") {
     const email = (process.argv[3] || "ADMIN").trim().toLowerCase(),
       password = process.env.RESET_PASSWORD;
-    if (!password || password.length < 10 || password.length > 128)
-      throw new Error(
-        "RESET_PASSWORD 환경변수에 10~128자의 새 비밀번호를 설정하세요.",
-      );
+    if (!validPassword(password))
+      throw new Error("RESET_PASSWORD: " + passwordRuleMessage);
     const user = await runtime.DB.prepare(
       "SELECT id FROM users WHERE email=? AND deleted_at IS NULL",
     )

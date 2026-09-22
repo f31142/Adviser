@@ -101,6 +101,153 @@ test("HTTP body limit applies even without Content-Length; malformed JSON is rej
   });
   assert.equal(invalid.status, 400);
 });
+test(
+  "chat events flush promptly to both roles, protect content and close revoked sessions",
+  { timeout: 12000 },
+  async () => {
+    assert.equal((await fetch(origin + "/api/events")).status, 401);
+    const customer = await post({
+      action: "register",
+      email: "live@example.test",
+      name: "채팅 고객",
+      password: "Customer-test!",
+    });
+    const admin = await post({
+      action: "login",
+      email: "ADMIN",
+      password: "initial-test-password",
+    });
+    const other = await post({
+      action: "register",
+      email: "other-live@example.test",
+      name: "다른 고객",
+      password: "Customer-test!",
+    });
+    const cookie = (response: Response) =>
+      response.headers.get("set-cookie")!.split(";")[0];
+    const customerCookie = cookie(customer),
+      adminCookie = cookie(admin);
+    assert.equal(
+      (
+        await fetch(origin + "/api/events", {
+          headers: { cookie: customerCookie, "sec-fetch-site": "cross-site" },
+        })
+      ).status,
+      403,
+    );
+    const { id } = await (
+      await post({ action: "create", service: "write" }, customerCookie)
+    ).json();
+    const readers: ReadableStreamDefaultReader<Uint8Array>[] = [];
+    async function connect(session: string) {
+      const response = await fetch(origin + "/api/events", {
+        headers: { cookie: session },
+        signal: AbortSignal.timeout(10000),
+      });
+      assert.equal(response.status, 200);
+      assert.ok(
+        response.headers.get("Content-Type")!.startsWith("text/event-stream"),
+      );
+      assert.ok(response.headers.get("Cache-Control")!.includes("no-store"));
+      const reader = response.body!.getReader();
+      readers.push(reader);
+      const decoder = new TextDecoder();
+      let buffer = "";
+      async function event(expected: string) {
+        let timer: ReturnType<typeof setTimeout>;
+        await Promise.race([
+          (async () => {
+            while (true) {
+              const end = buffer.indexOf("\n\n");
+              if (end >= 0) {
+                const frame = buffer.slice(0, end);
+                buffer = buffer.slice(end + 2);
+                if (!frame.includes("event:")) continue;
+                assert.ok(frame.includes("event: " + expected), frame);
+                assert.ok(frame.includes("data: {}"), frame);
+                for (const secret of [
+                  id,
+                  customerCookie,
+                  adminCookie,
+                  "고객의 비공개 메시지",
+                  "전달받았습니다",
+                ])
+                  assert.ok(!frame.includes(secret));
+                return;
+              }
+              const chunk = await reader.read();
+              assert.equal(
+                chunk.done,
+                false,
+                "stream closed before the expected event",
+              );
+              buffer += decoder.decode(chunk.value, { stream: true });
+            }
+          })(),
+          new Promise<void>((_, reject) => {
+            timer = setTimeout(
+              () =>
+                reject(
+                  new Error(
+                    "Realtime event was not delivered within 2 seconds",
+                  ),
+                ),
+              2000,
+            );
+          }),
+        ]).finally(() => clearTimeout(timer!));
+      }
+      await event("ready");
+      return { reader, event };
+    }
+    try {
+      const customerStream = await connect(customerCookie),
+        adminStream = await connect(adminCookie);
+      for (const [session, body] of [
+        [customerCookie, "고객의 비공개 메시지"],
+        [adminCookie, "전달받았습니다"],
+      ]) {
+        assert.equal(
+          (await post({ action: "chat", id, body }, session)).status,
+          200,
+        );
+        await Promise.all([
+          customerStream.event("workspace"),
+          adminStream.event("workspace"),
+        ]);
+        for (const owner of [customerCookie, adminCookie]) {
+          const history = await (
+            await fetch(origin + "/api/workspace?order=" + id, {
+              headers: { cookie: owner },
+            })
+          ).json();
+          assert.ok(
+            history.messages.some((message: any) => message.body === body),
+          );
+        }
+      }
+      assert.equal(
+        (
+          await fetch(origin + "/api/workspace?order=" + id, {
+            headers: { cookie: cookie(other) },
+          })
+        ).status,
+        404,
+      );
+      assert.equal(
+        (await post({ action: "logout" }, customerCookie)).status,
+        200,
+      );
+      await customerStream.event("session");
+      assert.equal((await customerStream.reader.read()).done, true);
+    } finally {
+      await Promise.all(readers.map((reader) => reader.cancel()));
+    }
+    assert.deepEqual(await (await fetch(origin + "/healthz")).json(), {
+      ok: true,
+    });
+  },
+);
 test("admin recovery and customer reset work against persistent storage without exposing secrets", async () => {
   const admin = await post({
     action: "login",
@@ -114,7 +261,7 @@ test("admin recovery and customer reset work against persistent storage without 
     action: "register",
     email: "reset@example.test",
     name: "초기화 테스트",
-    password: "customer-test-password",
+    password: "Customer-test!",
   });
   assert.equal(customer.status, 200);
   await stop();
@@ -122,7 +269,7 @@ test("admin recovery and customer reset work against persistent storage without 
     ...process.env,
     DATA_DIR: directory,
     APP_URL: origin,
-    RESET_PASSWORD: "replacement-test-password",
+    RESET_PASSWORD: "Replacement!24",
   };
   execFileSync(
     process.execPath,
@@ -154,7 +301,7 @@ test("admin recovery and customer reset work against persistent storage without 
       await post({
         action: "login",
         email: "ADMIN",
-        password: "replacement-test-password",
+        password: "Replacement!24",
       })
     ).status,
     200,
@@ -183,7 +330,7 @@ test("admin recovery and customer reset work against persistent storage without 
       await post({
         action: "login",
         email: "reset@example.test",
-        password: "customer-test-password",
+        password: "Customer-test!",
       })
     ).status,
     401,
@@ -193,7 +340,7 @@ test("admin recovery and customer reset work against persistent storage without 
       await post({
         action: "login",
         email: "ADMIN",
-        password: "replacement-test-password",
+        password: "Replacement!24",
       })
     ).status,
     200,

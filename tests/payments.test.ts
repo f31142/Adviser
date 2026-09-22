@@ -47,7 +47,7 @@ const customer = (
     action: "register",
     name: "고객",
     email: "customer@example.test",
-    password: "test-customer-password",
+    password: "Test-customer!",
   })
 ).cookie;
 const other = (
@@ -55,7 +55,7 @@ const other = (
     action: "register",
     name: "다른 고객",
     email: "other@example.test",
-    password: "test-customer-password",
+    password: "Test-customer!",
   })
 ).cookie;
 const form = {

@@ -43,22 +43,26 @@ try {
     action: "register",
     name: "Customer",
     email: "customer@example.test",
-    password: "test-customer-password",
+    password: "Test-customer!",
   });
   const other = await request({
     action: "register",
     name: "Other",
     email: "other@example.test",
-    password: "test-customer-password",
+    password: "Test-customer!",
   });
   assert.ok(c.cookie.includes("adviser_session="));
   await request({ action: "settings", config: {} }, c.cookie, 403);
   await request({ action: "create", service: "edit" }, "", 401);
+  await request({ action: "create", service: "edit" }, a.cookie, 403);
   const created = await request(
     { action: "create", service: "edit", amount: 1 },
     c.cookie,
   );
   const id = created.d.id;
+  await request({ action: "acceptComplete", id }, c.cookie, 400);
+  await request({ action: "acceptComplete", id }, a.cookie, 403);
+  await request({ action: "acceptComplete", id }, other.cookie, 404);
   let row = await db
     .prepare("SELECT * FROM orders WHERE id=?")
     .bind(id)
@@ -209,6 +213,76 @@ try {
   });
   assert.equal(r.status, 403);
   checks++;
+  // Only the owner can accept a delivered result, exactly once even on double click.
+  const acceptances = await Promise.all(
+    [0, 1].map(() =>
+      mf.dispatchFetch("https://adviser.test/api/workspace", {
+        method: "POST",
+        headers: {
+          cookie: c.cookie,
+          origin: "https://adviser.test",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action: "acceptComplete", id }),
+      }),
+    ),
+  );
+  assert.deepEqual(
+    acceptances.map((response) => response.status).sort(),
+    [200, 400],
+  );
+  row = await db
+    .prepare("SELECT status FROM orders WHERE id=?")
+    .bind(id)
+    .first();
+  assert.equal(row.status, "closed");
+  const accepted = await db
+    .prepare(
+      "SELECT COUNT(*) n FROM messages WHERE order_id=? AND body='고객이 결과물을 확인하고 작업을 종료했습니다.'",
+    )
+    .bind(id)
+    .first();
+  assert.equal(accepted.n, 1);
+  const notice = await db
+    .prepare(
+      "SELECT COUNT(*) n FROM notices WHERE order_id=? AND body='고객이 작업 완료를 확인했습니다.'",
+    )
+    .bind(id)
+    .first();
+  assert.equal(notice.n, 1);
+  checks += 4;
+  await request(
+    { action: "revision", id, body: "종료 이후 수정" },
+    c.cookie,
+    400,
+  );
+  await request({ action: "chat", id, body: "종료 이후 대화" }, c.cookie, 400);
+  await request({ action: "chat", id, body: "종료 이후 대화" }, a.cookie, 400);
+  await request({ action: "status", id, status: "working" }, a.cookie, 400);
+  await request({ action: "cancel", id }, c.cookie, 400);
+  await upload(c.cookie, "source", 400);
+  await upload(a.cookie, "result", 400);
+  for (const cookie of [c.cookie, a.cookie]) {
+    const download = await mf.dispatchFetch(
+      "https://adviser.test/api/files/" + file.id,
+      { headers: { cookie } },
+    );
+    assert.equal(download.status, 200);
+    assert.equal(await download.text(), "test document");
+    const history = await (
+      await mf.dispatchFetch("https://adviser.test/api/workspace?order=" + id, {
+        headers: { cookie },
+      })
+    ).json();
+    assert.equal(history.order.status, "closed");
+    assert.ok(
+      history.messages.some(
+        (message) =>
+          message.body === "고객이 결과물을 확인하고 작업을 종료했습니다.",
+      ),
+    );
+    checks += 4;
+  }
   await request({ action: "purgeFiles", id }, a.cookie);
   r = await mf.dispatchFetch("https://adviser.test/api/files/" + file.id, {
     headers: { cookie: c.cookie },
@@ -269,8 +343,8 @@ try {
   await request(
     {
       action: "password",
-      current: "test-customer-password",
-      password: "new-customer-password",
+      current: "Test-customer!",
+      password: "New-customer!",
     },
     c.cookie,
   );
@@ -278,7 +352,7 @@ try {
   await request({
     action: "login",
     email: "customer@example.test",
-    password: "new-customer-password",
+    password: "New-customer!",
   });
   console.log(
     `PASS: ${checks} authentication, ownership, payment, application, upload, chat and revision checks`,

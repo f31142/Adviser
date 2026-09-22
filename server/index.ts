@@ -1,4 +1,6 @@
 import { createServer } from "node:http";
+import { Readable } from "node:stream";
+import { closeEventStreams } from "./events.ts";
 import { readFile, stat } from "node:fs/promises";
 import { resolve, extname, sep } from "node:path";
 import { createRuntime, configureRuntime } from "./runtime.ts";
@@ -116,10 +118,13 @@ const server = createServer(async (req, res) => {
         if (size > limit) fail("요청 크기가 너무 큽니다.", 413);
         chunks.push(chunk);
       }
+      const abort = new AbortController();
+      res.once("close", () => abort.abort());
       const response = await route(
         new Request(url, {
           method: req.method,
           headers,
+          signal: abort.signal,
           body: ["GET", "HEAD"].includes(req.method || "GET")
             ? undefined
             : Buffer.concat(chunks),
@@ -127,7 +132,18 @@ const server = createServer(async (req, res) => {
       );
       res.statusCode = response.status;
       response.headers.forEach((v, k) => res.setHeader(k, v));
-      res.end(Buffer.from(await response.arrayBuffer()));
+      if (
+        response.body &&
+        response.headers.get("Content-Type")?.startsWith("text/event-stream")
+      ) {
+        res.flushHeaders();
+        const stream = Readable.fromWeb(
+          response.body as import("node:stream/web").ReadableStream,
+        );
+        res.once("close", () => stream.destroy());
+        stream.on("error", () => res.destroy());
+        stream.pipe(res);
+      } else res.end(Buffer.from(await response.arrayBuffer()));
       return;
     }
     if (vite) {
@@ -179,6 +195,7 @@ async function stop() {
   if (stopping) return;
   stopping = true;
   clearInterval(cleanup);
+  closeEventStreams();
   await vite?.close();
   server.close(() => {
     runtime.DB.close();
