@@ -43,20 +43,4 @@ export async function deleteMember(u: User, input: any) {
     );
 
   // Keep the historical owner ID for order/payment reconciliation. Erase login
-  // credentials and revoke every session in the same transaction; no undo path.
-  await db().batch([
-    db()
-      .prepare(
-        "UPDATE users SET email=?,name='삭제된 회원',password='',deleted_at=?,deleted_by=? WHERE id=? AND role='customer' AND deleted_at IS NULL",
-      )
-      .bind("deleted:" + uuid(), now(), u.id, member.id),
-    db().prepare("DELETE FROM sessions WHERE user_id=?").bind(member.id),
-    db().prepare("DELETE FROM notices WHERE user_id=?").bind(member.id),
-    db()
-      .prepare(
-        "UPDATE messages SET name='삭제된 회원' WHERE user_id=? AND role='customer'",
-      )
-      .bind(member.id),
-  ]);
-  return response({ ok: true });
-}
+  // credentials and revoke every session in the

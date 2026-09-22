@@ -96,34 +96,4 @@ export async function limited(key: string, max = 10) {
   if ((r?.count || 0) > max)
     fail("시도가 너무 많습니다. 15분 후 다시 시도해 주세요.", 429);
 }
-export function notification(uid: string, oid: string, body: string) {
-  return db()
-    .prepare(
-      "INSERT INTO notices(id,user_id,order_id,body,created) VALUES(?,?,?,?,?)",
-    )
-    .bind(uuid(), uid, oid, body, now());
-}
-export function message(oid: string, u: User, body: string, role = u.role) {
-  return db()
-    .prepare(
-      "INSERT INTO messages(id,order_id,user_id,name,role,body,created) VALUES(?,?,?,?,?,?,?)",
-    )
-    .bind(uuid(), oid, u.id, u.name, role, body, now());
-}
-export async function notifyOther(o: any, u: User, body: string) {
-  const targets =
-    u.role === "admin"
-      ? [{ id: o.user_id }]
-      : (
-          await db()
-            .prepare("SELECT id FROM users WHERE role='admin'")
-            .all<{ id: string }>()
-        ).results;
-  return targets
-    .filter((x) => x.id !== u.id)
-    .map((x) => notification(x.id, o.id, body));
-}
-
-export function sessionCookie(token = "", maxAge = 0) {
-  return `adviser_session=${token}; HttpOnly; ${bindings().APP_URL.startsWith("https:") ? "Secure; " : ""}SameSite=Lax; Path=/; Max-Age=${maxAge}`;
-}
+export function n
