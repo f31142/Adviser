@@ -1415,4 +1415,489 @@ export default function Adviser() {
                   )}
                 </section>
                 {!admin && ["review", "complete"].includes(o.status) && (
-                  <section className="pa
+                  <section className="panel">
+                    <h2>수정 요청</h2>
+                    <p className="muted">
+                      검토한 초안이나 결과물에서 바꾸고 싶은 부분을 알려 주세요.
+                    </p>
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const el = e.currentTarget;
+                        act("revision", {
+                          body: new FormData(el).get("body"),
+                        }).then((r) => {
+                          if (r) el.reset();
+                        });
+                      }}
+                    >
+                      <textarea
+                        name="body"
+                        required
+                        maxLength={5000}
+                        rows={3}
+                        placeholder="문항과 수정할 내용을 구체적으로 적어 주세요."
+                      />
+                      <button className="btn" disabled={busy}>
+                        수정 요청 보내기
+                      </button>
+                    </form>
+                  </section>
+                )}
+                {![
+                  "cancelled",
+                  "refunded",
+                  "cancel_requested",
+                  "rejected",
+                ].includes(o.status) && (
+                  <button
+                    className="text-button danger"
+                    onClick={() =>
+                      setConfirm({
+                        title: "이 작업을 취소할까요?",
+                        description:
+                          o.payment === "unpaid"
+                            ? "결제 전 신청을 취소합니다."
+                            : "관리자에게 취소 요청을 전달합니다. 환불 여부와 금액은 작업 진행 정도 및 협의 내용에 따라 확인됩니다.",
+                        action: "cancel",
+                      })
+                    }
+                  >
+                    신청 취소 요청
+                  </button>
+                )}
+                {admin &&
+                  ["complete", "cancelled", "refunded", "rejected"].includes(
+                    o.status,
+                  ) &&
+                  detail.files.length > 0 && (
+                    <button
+                      className="text-button danger"
+                      onClick={() =>
+                        setConfirm({
+                          title: "첨부 자료를 모두 삭제할까요?",
+                          description:
+                            "이 작업의 원본과 결과물 파일을 영구 삭제합니다. 고객에게 안내한 보관 기간과 삭제 요청을 먼저 확인해 주세요. 신청 내역과 채팅은 남습니다.",
+                          action: "purgeFiles",
+                        })
+                      }
+                    >
+                      첨부 자료 영구 삭제
+                    </button>
+                  )}
+                {admin && o.status === "cancel_requested" && (
+                  <button
+                    className="btn"
+                    onClick={() =>
+                      setConfirm({
+                        title: "취소 정산을 완료했나요?",
+                        description:
+                          "실제 입금 내역을 확인하고, 환불이 필요한 경우 계좌 환불을 먼저 완료해 주세요. 이 버튼은 실제 송금을 실행하지 않습니다.",
+                        action: "refund",
+                      })
+                    }
+                  >
+                    취소 정산 완료
+                  </button>
+                )}
+              </div>
+              <aside className="chat-panel">
+                <div className="chat-heading">
+                  <span className="avatar">
+                    <MessageSquare size={20} />
+                  </span>
+                  <div>
+                    <h2>{admin ? "고객과 대화" : "담당 관리자와 대화"}</h2>
+                    <p>이 작업의 자료와 피드백을 나눠요</p>
+                  </div>
+                </div>
+                <div
+                  className="chat-messages"
+                  role="log"
+                  aria-label="채팅 메시지"
+                >
+                  {!detail.messages.length && (
+                    <div className="chat-empty">
+                      <MessageSquare size={30} />
+                      <p>
+                        궁금한 점을 남겨 주세요.
+                        <br />
+                        담당 관리자가 확인 후 답변드려요.
+                      </p>
+                    </div>
+                  )}
+                  {detail.messages.map((m: any) =>
+                    m.role === "system" ? (
+                      <div className="system-message" key={m.id}>
+                        {m.body}
+                      </div>
+                    ) : (
+                      <div
+                        key={m.id}
+                        className={
+                          "message " +
+                          (m.user_id === data.user.id ? "mine" : "")
+                        }
+                      >
+                        <small>
+                          {m.name} ·{" "}
+                          {new Date(m.created).toLocaleTimeString("ko-KR", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </small>
+                        <p>{m.body}</p>
+                      </div>
+                    ),
+                  )}
+                </div>
+                <form
+                  className="chat-composer"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    act("chat", { body: chat }).then((r) => {
+                      if (r) setChat("");
+                    });
+                  }}
+                >
+                  <textarea
+                    aria-label="메시지"
+                    rows={2}
+                    maxLength={5000}
+                    placeholder="메시지를 입력해 주세요"
+                    value={chat}
+                    onChange={(e) => setChat(e.target.value)}
+                    disabled={["cancelled", "refunded", "rejected"].includes(
+                      o.status,
+                    )}
+                  />
+                  <button
+                    className="btn"
+                    disabled={
+                      busy ||
+                      !chat.trim() ||
+                      ["cancelled", "refunded", "rejected"].includes(o.status)
+                    }
+                    aria-label="메시지 보내기"
+                  >
+                    <Send size={18} />
+                  </button>
+                </form>
+                <p className="fine chat-fine">
+                  새 메시지는 자동으로 갱신됩니다.
+                </p>
+              </aside>
+            </div>
+          </>
+        )}
+        {view === "members" && admin && (
+          <Members
+            onDelete={(memberId, confirmEmail) =>
+              run(async () => {
+                await api({ action: "deleteMember", memberId, confirmEmail });
+                await refresh();
+                toast.success("회원 계정을 삭제하고 모든 접속을 종료했습니다.");
+                return true;
+              })
+            }
+          />
+        )}
+        {view === "settings" && admin && cfg && (
+          <>
+            <div className="section-heading">
+              <div>
+                <span className="eyebrow">STUDIO SETTINGS</span>
+                <h1>운영 설정</h1>
+                <p>변경한 가격과 수정 횟수는 새로운 신청부터 적용됩니다.</p>
+              </div>
+            </div>
+            <form
+              className="settings-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                run(async () => {
+                  await api({ action: "settings", config: cfg });
+                  await refresh();
+                  toast.success("운영 설정을 저장했습니다.");
+                });
+              }}
+            >
+              <section className="panel">
+                <h2>서비스 가격</h2>
+                <div className="field-grid">
+                  {[
+                    ["editPrice", "기존 서류 첨삭"],
+                    ["writePrice", "초안 작성 지원"],
+                  ].map(([k, l]) => (
+                    <label key={k}>
+                      {l} · 원
+                      <input
+                        type="number"
+                        min={1000}
+                        max={10000000}
+                        required
+                        value={cfg[k]}
+                        onChange={(e) =>
+                          setCfg({ ...cfg, [k]: Number(e.target.value) })
+                        }
+                      />
+                    </label>
+                  ))}
+                </div>
+                <label>
+                  기본 수정 가능 횟수
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    required
+                    value={cfg.revisionLimit}
+                    onChange={(e) =>
+                      setCfg({ ...cfg, revisionLimit: Number(e.target.value) })
+                    }
+                  />
+                </label>
+                <p className="fine">
+                  0은 횟수 제한 없이 상담으로 협의하는 설정입니다.
+                </p>
+              </section>
+              <section className="panel">
+                <h2>계좌이체 정보</h2>
+                <p className="muted">
+                  세 항목을 모두 등록하면 고객이 입금 확인을 요청할 수 있어요.
+                </p>
+                {[
+                  ["bank", "은행"],
+                  ["account", "계좌번호"],
+                  ["holder", "예금주"],
+                ].map(([k, l]) => (
+                  <label key={k}>
+                    {l}
+                    <input
+                      maxLength={k === "account" ? 80 : 50}
+                      value={cfg[k]}
+                      onChange={(e) => setCfg({ ...cfg, [k]: e.target.value })}
+                    />
+                  </label>
+                ))}
+                <div className="notice">
+                  <CreditCard />
+                  <p>
+                    {data.config.onlinePayment
+                      ? data.config.testPayment
+                        ? "온라인 결제가 테스트 모드로 연결되어 있습니다."
+                        : "온라인 결제가 연결되어 있습니다."
+                      : "카드·간편결제는 결제업체 연결 후 사용할 수 있습니다."}
+                  </p>
+                </div>
+              </section>
+              <section className="panel">
+                <h2>고객 안내</h2>
+                <label>
+                  취소·환불 안내
+                  <textarea
+                    rows={5}
+                    maxLength={5000}
+                    placeholder="확정한 운영 정책을 입력해 주세요."
+                    value={cfg.policy}
+                    onChange={(e) => setCfg({ ...cfg, policy: e.target.value })}
+                  />
+                </label>
+                <label>
+                  자료 보관·삭제 안내
+                  <textarea
+                    rows={4}
+                    maxLength={2000}
+                    placeholder="실제로 운영할 보관 기간과 삭제 요청 방법을 입력해 주세요."
+                    value={cfg.retention}
+                    onChange={(e) =>
+                      setCfg({ ...cfg, retention: e.target.value })
+                    }
+                  />
+                </label>
+                <p className="fine">
+                  안내 문구 저장만으로 파일이 자동 삭제되지는 않습니다.
+                </p>
+              </section>
+              <button className="btn" disabled={busy}>
+                설정 저장 <Check size={18} />
+              </button>
+            </form>
+          </>
+        )}
+        {view === "notices" && (
+          <>
+            <div className="section-heading">
+              <div>
+                <span className="eyebrow">NOTIFICATIONS</span>
+                <h1>알림</h1>
+                <p>작업과 관련된 새로운 소식을 확인하세요.</p>
+              </div>
+              <button className="btn secondary" onClick={() => act("read")}>
+                모두 읽음
+              </button>
+            </div>
+            {data.notices.length ? (
+              data.notices.map((n: any) => (
+                <button
+                  className={"notice-row " + (!n.seen ? "unread" : "")}
+                  key={n.id}
+                  onClick={() => openOrder(n.order_id)}
+                >
+                  <Bell size={20} />
+                  <span>
+                    {n.body}
+                    <small>{date(n.created)}</small>
+                  </span>
+                  <ChevronRight size={18} />
+                </button>
+              ))
+            ) : (
+              <Empty>
+                <EmptyHeader>
+                  <Bell size={32} />
+                  <EmptyTitle>새로운 알림이 없어요</EmptyTitle>
+                  <EmptyDescription>
+                    신청, 채팅, 작업 상태 변경 소식이 여기에 표시됩니다.
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            )}
+          </>
+        )}
+        {view === "account" && (
+          <section className="panel account-panel">
+            <h1>계정 관리</h1>
+            <p>
+              {data.user?.name} · {data.user?.email}
+            </p>
+            <h2>비밀번호 변경</h2>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const f = new FormData(e.currentTarget);
+                run(async () => {
+                  await api({
+                    action: "password",
+                    current: f.get("current"),
+                    password: f.get("password"),
+                  });
+                  await refresh();
+                  setView("auth");
+                  setAuthMode("login");
+                  toast.success(
+                    "비밀번호가 변경되었습니다. 다시 로그인해 주세요.",
+                  );
+                });
+              }}
+            >
+              <label>
+                현재 비밀번호
+                <input
+                  name="current"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                />
+              </label>
+              <label>
+                새 비밀번호
+                <input
+                  name="password"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  minLength={10}
+                  maxLength={128}
+                />
+              </label>
+              <button className="btn" disabled={busy}>
+                비밀번호 변경
+              </button>
+            </form>
+          </section>
+        )}
+        {view === "policies" && (
+          <section className="panel policy-panel">
+            <h2>취소·환불 안내</h2>
+            <p>
+              {data.config.policy ||
+                "운영 정책을 준비 중입니다. 결제 전 관리자와 취소·환불 조건을 확인해 주세요."}
+            </p>
+            <h2>자료 보관·삭제 안내</h2>
+            <p>
+              {data.config.retention ||
+                "자료 보관 기간과 삭제 절차를 준비 중입니다. 제출 서류는 해당 고객과 관리자만 열람할 수 있습니다."}
+            </p>
+            <button
+              className="btn secondary"
+              onClick={() => navigate("services")}
+            >
+              돌아가기
+            </button>
+          </section>
+        )}
+      </main>
+      {!guestLanding && <footer>
+        <div>
+          <strong>Adviser</strong>
+          <span>당신의 다음 기회를 함께 씁니다.</span>
+        </div>
+        <div>
+          <button onClick={() => navigate("services")}>서비스</button>
+          <button onClick={() => setView("policies")}>이용·자료 안내</button>
+          <span>© {new Date().getFullYear()} Adviser</span>
+        </div>
+      </footer>}
+      <AlertDialog
+        open={!!confirm}
+        onOpenChange={(v) => {
+          if (!v) setConfirm(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirm?.title}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirm?.description}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {confirm?.action === "reject" && (
+            <label>
+              반려 사유
+              <textarea
+                aria-label="반려 사유"
+                maxLength={1000}
+                value={confirm.reason}
+                onChange={(e) =>
+                  setConfirm({ ...confirm, reason: e.target.value })
+                }
+              />
+            </label>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel>돌아가기</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={
+                busy ||
+                (confirm?.action === "reject" && !confirm.reason?.trim())
+              }
+              onClick={() => {
+                if (confirm)
+                  act(
+                    confirm.action,
+                    confirm.action === "reject"
+                      ? { reason: confirm.reason }
+                      : {},
+                  );
+                setConfirm(null);
+              }}
+            >
+              확인
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
