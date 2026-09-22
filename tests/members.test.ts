@@ -179,4 +179,57 @@ test("only admins can list customers and delete confirmed non-admin accounts; re
     },
     "",
     401,
+  );
+  assert((await get("/api/workspace", other.cookie)).user);
+  const active = await get("/api/workspace?members=1", admin.cookie);
+  assert(!active.members.some((m: any) => m.id === targetId));
+  const history = await get("/api/workspace?order=" + orderId, admin.cookie);
+  assert.equal(history.files[0].id, fileId);
+  assert.equal(history.messages[0].name, "삭제된 회원");
+  assert.equal(history.messages[0].body, "기존 상담 내용");
+  const allOrders = await get("/api/workspace", admin.cookie);
+  assert.equal(allOrders.orders.find((o: any) => o.id === orderId).email, "");
+  assert.equal(
+    (
+      await runtime.DB.prepare("SELECT status FROM payments WHERE id=?")
+        .bind(paymentId)
+        .first<any>()
+    ).status,
+    "DONE",
+  );
+  const download = await route(
+    new Request("https://adviser.test/api/files/" + fileId, {
+      headers: { cookie: admin.cookie },
+    }),
+  );
+  assert.equal(download.status, 200);
+  assert.equal(await download.text(), "보관할 첨부파일");
+
+  // Even an accidentally retained/restored session must fail the deleted-user check.
+  await runtime.DB.prepare(
+    "INSERT INTO sessions(token,user_id,expires) VALUES(?,?,?)",
   )
+    .bind(await digest("residual-test-token"), targetId, Date.now() + 60000)
+    .run();
+  await post(
+    { action: "create", service: "write" },
+    "adviser_session=residual-test-token",
+    401,
+  );
+  const fresh = await post({
+    action: "register",
+    email: "remove@example.test",
+    name: "새 고객",
+    password: "new-customer-password",
+  });
+  const freshWorkspace = await get("/api/workspace", fresh.cookie);
+  assert.notEqual(freshWorkspace.user.id, targetId);
+  assert.deepEqual(freshWorkspace.orders, []);
+  await get("/api/workspace?order=" + orderId, fresh.cookie, 404);
+  const oldFile = await route(
+    new Request("https://adviser.test/api/files/" + fileId, {
+      headers: { cookie: fresh.cookie },
+    }),
+  );
+  assert.equal(oldFile.status, 404);
+});
