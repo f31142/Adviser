@@ -144,4 +144,48 @@ export default function Members({
           <AlertDialogHeader>
             <AlertDialogTitle>이 회원의 계정을 삭제할까요?</AlertDialogTitle>
             <AlertDialogDescription>
-              이름·이메일·비밀번호와 로그인 세션을 삭제합니다. 이 계정으로 �
+              이름·이메일·비밀번호와 로그인 세션을 삭제합니다. 이 계정으로 다시
+              로그인할 수 없으며 복구할 수 없습니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="member-delete-target">
+            <strong>{selected?.name}</strong>
+            <span>{selected?.email}</span>
+          </div>
+          <p className="muted">
+            기존 신청서·채팅 내용·첨부파일·결제 기록은 관리자에게 유지되며
+            ‘삭제된 회원’으로 표시됩니다. 결제나 환불이 자동으로 취소되지는
+            않습니다.
+          </p>
+          <label>
+            확인을 위해 이 회원의 이메일을 입력해 주세요.
+            <input
+              type="email"
+              autoComplete="off"
+              spellCheck={false}
+              maxLength={254}
+              value={confirmEmail}
+              onChange={(e) => setConfirmEmail(e.target.value)}
+              placeholder={selected?.email}
+              disabled={deleting}
+            />
+          </label>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>돌아가기</AlertDialogCancel>
+            <button
+              className="btn member-delete-confirm"
+              disabled={
+                deleting ||
+                !selected ||
+                confirmEmail.trim().toLowerCase() !== selected.email
+              }
+              onClick={remove}
+            >
+              {deleting ? "삭제 중…" : "계정 삭제 확정"}
+            </button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
